@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState , useEffect} from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
@@ -11,7 +11,15 @@ export default function RegisterPage() {
 	const [lastName, setLastName] = useState("");
 	const [password, setPassword] = useState("");
 	const [passwordConfirm, setPasswordConfirm] = useState("");
-
+	useEffect(() => {
+			// Check for authentication token
+			const token = localStorage.getItem('access_token');
+			if (token) {
+			  router.push('/');
+			  return;
+			}
+		
+		  }, [router]);
 	const handleSubmit = async (e) => {
 		e.preventDefault();
 
@@ -73,6 +81,9 @@ export default function RegisterPage() {
 				<input type="password" placeholder="Confirm Password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} required className="w-full text-black p-2 border rounded" />
 
 				<button type="submit" className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Register</button>
+				<p className="text-neutral-700 mt-4 text-center">
+					Already have an account? <a href="/login" className="text-blue-500 hover:underline">Login</a>
+				</p>
 			</form>
 		</div>
 	);

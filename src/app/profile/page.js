@@ -3,13 +3,23 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getUserInfo } from '../../../utils/auth'; // Adjust the path if needed
+import { useRouter } from 'next/navigation';
+import { getUserInfo } from '../../../utils/auth'; 
 
 const ProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
+    // Check for authentication token
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
+    // Load profile if token exists
     const loadProfile = async () => {
       try {
         const userData = await getUserInfo();
@@ -22,7 +32,7 @@ const ProfilePage = () => {
     };
 
     loadProfile();
-  }, []);
+  }, [router]);
 
   if (error) {
     return <div className="p-4 text-red-500">{error}</div>;

@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 export default function Home() {
 	const [user, setUser] = useState(null);
 	const router = useRouter();
+	
 	useEffect(() => {
+		const token = localStorage.getItem('access_token');
+		if (!token) {
+		router.push('/login');
+		return;
+		}
 		const loaduser = async () => {
 		  try {
 			const userData = await getUserInfo();
@@ -19,7 +25,7 @@ export default function Home() {
 		};
 	
 		loaduser();
-	  }, []);
+	  }, [router]);
 
 	
 

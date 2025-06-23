@@ -1,11 +1,20 @@
 "use client";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState ,useEffect } from "react";
+import { useRouter  } from "next/navigation";
 
 export default function LoginPage() {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const router = useRouter();
+	useEffect(() => {
+		// Check for authentication token
+		const token = localStorage.getItem('access_token');
+		if (token) {
+		  router.push('/');
+		  return;
+		}
+	
+	  }, [router]);
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
@@ -47,7 +56,11 @@ export default function LoginPage() {
 				<input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full text-black p-2 border rounded" />
 
 				<button type="submit" className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Login</button>
+				<p className="text-neutral-700  mt-4 text-center">
+				Don't have an account? <a href="/register" className="text-blue-500 hover:underline">Register</a>
+			</p>
 			</form>
+			
 		</div>
 	);
 }
