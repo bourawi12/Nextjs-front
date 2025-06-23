@@ -1,3 +1,4 @@
+import { data } from "autoprefixer";
 import axios from "axios";
 
 const API_BASE = "http://127.0.0.1:8000/api/";
@@ -61,11 +62,24 @@ export const logoutUser = async () => {
 
 export const getUserInfo = async () => {
     try {
-        const response = await axios.get(`${API_URL}profiles/my_profile`, { withCredentials: true });
+        const token = localStorage.getItem("access_token");
+        if (!token) {
+            throw new Error("No access token found");
+        }
+        console.log("Fetching user info with token:", token);
+        const response = await fetch("http://127.0.0.1:8000/api/profiles/my_profile/", {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        const data = await response.json();
+        console.log("User info response:", data);
         if (response.status !== 200) {
             throw new Error("Failed to fetch user info");
         }
-        return response.data;
+        return data;
     } catch (e) {
         console.error(e); 
         throw new Error("Getting user info failed!");
@@ -81,6 +95,7 @@ export const refreshToken = async () => {
 
         const { access } = response.data;
         localStorage.setItem("access_token", access);
+        console.log("Token refreshed successfully");
         return access;
     } catch (e) {
         throw new Error("Refreshing token failed!");
