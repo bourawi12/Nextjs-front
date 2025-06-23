@@ -1,10 +1,11 @@
 "use client";
 import { logoutUser, getUserInfo, refreshToken } from "../../utils/auth";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
 	const [user, setUser] = useState(null);
-	
+	const router = useRouter();
 	useEffect(() => {
 		const loaduser = async () => {
 		  try {
@@ -24,6 +25,7 @@ export default function Home() {
 
 	const handleLogout = async () => {
 		await logoutUser();
+		router.push("/login");
 	};
 
   const handleRefresh = async () => {

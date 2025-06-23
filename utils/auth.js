@@ -36,27 +36,57 @@ export const loginUser = async (username, password) => {
             username,
             password
         });
+        
         const { access, refresh } = response.data;
+
+        if (!access || !refresh) {
+            throw new Error("Invalid response: Tokens missing.");
+        }
 
         // Store tokens
         localStorage.setItem("access_token", access);
         localStorage.setItem("refresh_token", refresh);
 
         return response.data;
-    } catch (e) {
-        throw new Error("Login failed!");
+    } catch (error) {
+        // Log actual error for debugging
+        console.error('Login error:', error.response ? error.response.data : error.message);
+        
+        // You can throw a more detailed message or keep it generic for user display
+        throw new Error(error.response?.data?.detail || "Login failed!");
     }
 };
 
 export const logoutUser = async () => {
     try {
-        localStorage.removeItem("access_token");
-        localStorage.removeItem("refresh_token");
+        const accessToken = localStorage.getItem('access_token');
+        const refreshToken = localStorage.getItem('refresh_token');
 
-        const response = await axios.post(`${AUTH_URL}logout/`, null);
+        if (!accessToken || !refreshToken) {
+            throw new Error('No tokens found. User may already be logged out.');
+        }
+
+        const response = await axios.post(
+            'http://127.0.0.1:8000/api/auth/logout/',
+            { refresh: refreshToken },
+            {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        console.log('Logout successful:', response.data.message);
+
+        
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+
         return response.data;
-    } catch (e) {
-        throw new Error("Logout failed!");
+    } catch (error) {
+        console.error('Logout error:', error.response ? error.response.data : error.message);
+        throw new Error(error.response?.data?.detail || 'Logout failed.');
     }
 };
 
