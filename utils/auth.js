@@ -85,6 +85,16 @@ export const getUserInfo = async () => {
     }
 };
 
+export const getallUsers = async () => {
+    try {
+        const response = await apiClient.get('profiles/');
+        return response.data;
+    } catch (e) {
+        console.error(e);
+        throw new Error("Getting user info failed!");
+    }
+};
+
 export const refreshToken = async () => {
     try {
         const refresh = localStorage.getItem("refresh_token");
