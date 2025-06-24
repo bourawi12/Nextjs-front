@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect  } from 'react';
-import { User, Edit2, Mail, Calendar, Briefcase, Users, FileText } from 'lucide-react';
+import { User, Edit2, Mail, Calendar, Briefcase, Users, FileText , X } from 'lucide-react';
 import { redirect } from 'next/dist/server/api-utils';
 import { useRouter } from 'next/navigation';
 
@@ -14,6 +14,16 @@ const UserProfilesApp = () => {
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [newSkillName, setNewSkillName] = useState('');
+  const [newSkillProficiency, setNewSkillProficiency] = useState('');
+  const proficiencyOrder = {
+  'Expert': 1,
+  'Intermediate': 2,
+  'Basic': 3
+};
+
+
+  
   
   const router = useRouter();
   
@@ -157,6 +167,62 @@ const UserProfilesApp = () => {
     setError('Failed to fetch skills: ' + err.message);
   }
 };
+
+const handleAddSkill = async () => {
+  if (!newSkillName.trim() || !newSkillProficiency.trim()) return;
+
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setError('No authentication token found. Please login.');
+      return;
+    }
+
+    const response = await fetch('http://127.0.0.1:8000/api/skills/', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        profile: selectedUser.id,  // Assuming selectedUser is the profile owner
+        name: newSkillName,
+        prificiency: newSkillProficiency
+      })
+    });
+
+    if (response.status === 401) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        return handleAddSkill(); // Retry
+      } else {
+        setError('Authentication expired. Please login again.');
+        return;
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error('Failed to add skill');
+    }
+
+    const newSkill = await response.json();
+
+    // Update UI
+    setSelectedUser((prevUser) => ({
+      ...prevUser,
+      skills: [...prevUser.skills, newSkill]
+    }));
+
+    // Clear input fields
+    setNewSkillName('');
+    setNewSkillProficiency('');
+
+  } catch (err) {
+    setError('Failed to add skill: ' + err.message);
+  }
+};
+
+
 
 const handleDeleteSkill = async (skillId) => {
   console.log("i'm in handleDeleteSkill", skillId, selectedUser);
@@ -317,6 +383,18 @@ const handleDeleteSkill = async (skillId) => {
       </div>
     );
   }
+const getSkillBadgeColor = (proficiency) => {
+  switch (proficiency) {
+    case 'Expert':
+      return 'bg-green-200 text-green-800';
+    case 'Intermediate':
+      return 'bg-yellow-200 text-yellow-800';
+    case 'Basic':
+      return 'bg-red-200 text-red-800';
+    default:
+      return 'bg-gray-200 text-gray-800';
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -511,32 +589,69 @@ const handleDeleteSkill = async (skillId) => {
                       </div>
                      <div>
   <h4 className="text-lg font-semibold text-gray-900 mb-2">Skills</h4>
+  
+
+
+
   <div className="flex flex-wrap gap-2">
     
     {selectedUser.skills && selectedUser.skills.length > 0 ? (
-  selectedUser.skills.map((skill, index) => {
-    return (
-      <span
-        key={skill.id || index}
-        className="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-3 py-1 rounded-full flex items-center"
-      >
-        {skill.name} 
-        
+  selectedUser.skills
+    .slice() // Make a shallow copy to avoid mutating state directly
+    .sort((a, b) => proficiencyOrder[a.prificiency] - proficiencyOrder[b.prificiency])
+    .map((skill, index) => {
+      return (
+        <span
+          key={skill.id || index}
+          className={`text-sm font-medium mr-2 px-3 py-1 rounded-full flex items-center ${getSkillBadgeColor(skill.prificiency)}`}
+        >
+          {skill.name}
+ {isCurrentUser(selectedUser) && !isEditing && (
           <button
             onClick={() => handleDeleteSkill(skill.id)}
-            className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
+            className="ml-2 text-neutral-800 hover:text-neutral-950 focus:outline-none"
           >
-            ×
-          </button>
-        
-      </span>
-    );
-  })
+            <X className="h-3 w-3 text-gray-800" />
+          </button>)}
+        </span>
+      );
+    })
 ) : (
   <p className="text-gray-600">No skills available</p>
 )}
 
+
+
   </div>
+  {isCurrentUser(selectedUser) && !isEditing && (
+  <div className="flex items-center space-x-2 mt-4">
+  <input
+    type="text"
+    placeholder="Enter skill name"
+    value={newSkillName}
+    onChange={(e) => setNewSkillName(e.target.value)}
+    className="border text-neutral-800 p-2 rounded w-64"
+  />
+  
+  <select
+    value={newSkillProficiency}
+    onChange={(e) => setNewSkillProficiency(e.target.value)}
+    className="border text-neutral-800 p-2 rounded w-64"
+  >
+    <option value="">Select proficiency</option>
+    <option value="Expert">Expert</option>
+    <option value="Intermediate">Intermediate</option>
+    <option value="Basic">Basic</option>
+  </select>
+
+  
+  <button
+    onClick={handleAddSkill}
+    className="text-white bg-blue-500 hover:bg-blue-600 rounded px-4 py-2"
+  >
+    +
+  </button>
+</div>)}
 </div>
 
 
@@ -551,6 +666,7 @@ const handleDeleteSkill = async (skillId) => {
               </div>
             )}
           </div>
+          
         </div>
       </div>
       
