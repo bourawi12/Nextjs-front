@@ -12,7 +12,7 @@ const UserProfilesApp = () => {
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-    
+  
   
   const getCurrentUser = () => {
     const token = localStorage.getItem('access_token');
@@ -130,68 +130,61 @@ const UserProfilesApp = () => {
   };
 
   const handleSaveEdit = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      if (!token) {
-        setError('No authentication token found. Please login.');
+  try {
+    const token = localStorage.getItem('access_token');
+    
+    if (!token) {
+      setError('No authentication token found. Please login.');
+      return;
+    }
+
+    const response = await fetch(`http://127.0.0.1:8000/api/profiles/${selectedUser.id}/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        bio: editForm.bio,
+        position: editForm.position
+      })
+    });
+
+    if (response.status === 401) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        return handleSaveEdit();
+      } else {
+        setError('Authentication expired. Please login again.');
         return;
       }
-
-      const response = await fetch(`http://127.0.0.1:8000/api/profiles/${selectedUser.id}/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            
-          bio: editForm.bio,
-          position: editForm.position
-         
-        })
-      }
-    
-    );
-
-      if (response.status === 401) {
-        
-        const refreshed = await refreshToken();
-        if (refreshed) {
-          
-          return handleSaveEdit();
-        } else {
-          setError('Authentication expired. Please login again.');
-          return;
-        }
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to update profile');
-      }
-
-      const updatedProfile = await response.json();
-      
-      
-      const updatedProfiles = profiles.map(profile => {
-        if (profile.id === selectedUser.id) {
-          return updatedProfile;
-        }
-        return profile;
-      });
-
-      setProfiles(updatedProfiles);
-      setSelectedUser(updatedProfile);
-      setIsEditing(false);
-      
-     
-      console.log('Profile updated successfully');
-      
-    } catch (err) {
-      setError('Failed to update profile: ' + err.message);
     }
-  };
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to update profile');
+    }
+
+    const updatedProfile = await response.json();
+    
+     
+    updatedProfile.owner = selectedUser.owner;
+    
+    const updatedProfiles = profiles.map(profile => {
+      if (profile.id === selectedUser.id) {
+        return updatedProfile;
+      }
+      return profile;
+    });
+  
+    setProfiles(updatedProfiles);
+    setSelectedUser(updatedProfile);
+    setIsEditing(false);
+    
+  } catch (err) {
+    setError('Failed to update profile: ' + err.message);
+  }
+};
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
