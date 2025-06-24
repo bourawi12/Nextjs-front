@@ -1,8 +1,10 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect  } from 'react';
 import { User, Edit2, Mail, Calendar, Briefcase, Users, FileText } from 'lucide-react';
+import { redirect } from 'next/dist/server/api-utils';
+import { useRouter } from 'next/navigation';
 
 const UserProfilesApp = () => {
   const [profiles, setProfiles] = useState([]);
@@ -13,6 +15,7 @@ const UserProfilesApp = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  const router = useRouter();
   
   const getCurrentUser = () => {
     const token = localStorage.getItem('access_token');
@@ -112,11 +115,60 @@ const UserProfilesApp = () => {
       setLoading(false);
     }
   };
+  const fetchSkillsperuser = async (userId) => {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    setError('No authentication token found. Please login.');
+    return;
+  }
+
+  try {
+    const response = await fetch(`http://127.0.0.1:8000/api/profiles/${userId}/skills/`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.status === 401) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        return fetchSkillsperuser(userId); // retry
+      } else {
+        setError('Authentication expired. Please login again.');
+        return;
+      }
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to fetch skills');
+    }
+
+    const skillsData = await response.json();
+
+    // Update the selected user with their skills
+    setSelectedUser((prevUser) => ({
+      ...prevUser,
+      skills: skillsData // Assuming this is an array of skills
+    }));
+
+  } catch (err) {
+    setError('Failed to fetch skills: ' + err.message);
+  }
+};
 
   const handleUserClick = (profile) => {
-    setSelectedUser(profile);
-    setIsEditing(false);
-  };
+  if (!profile || !profile.id) {
+    console.error('Invalid profile selected:', profile);
+    return;
+  }
+
+  setSelectedUser(profile);
+  setIsEditing(false);
+  fetchSkillsperuser(profile.id);
+};
+
 
   const handleEditClick = () => {
     setEditForm({
@@ -261,8 +313,9 @@ const UserProfilesApp = () => {
                       <p className="text-sm text-gray-500 truncate">{profile.position}</p>
                       <div className="flex items-center mt-1 text-xs text-gray-400">
                         <FileText className="h-3 w-3 mr-1" />
-                        {profile.skills_count} skills • {profile.projects_count} projects
+                        {profile.skills_count} skills  • {profile.projects_count} projects 
                       </div>
+                      
                     </div>
                   </div>
                 </div>
@@ -407,9 +460,33 @@ const UserProfilesApp = () => {
                         </div>
                         <div className="bg-green-50 rounded-lg p-4 text-center">
                           <div className="text-2xl font-bold text-green-600">{selectedUser.projects_count}</div>
-                          <div className="text-sm text-green-800">Projects</div>
+                          <div className="text-sm text-green-800" onClick={() => router.push('/skills')}>Projects</div>
                         </div>
                       </div>
+                     <div>
+  <h4 className="text-lg font-semibold text-gray-900 mb-2">Skills</h4>
+  <div className="flex flex-wrap gap-2">
+    
+    {selectedUser.skills && selectedUser.skills.length > 0 ? (
+      selectedUser.skills.map((skill, index) => {
+        console.log('Rendering skill:', skill); // ✅ Debug here
+        console.log('selected user',selectedUser)
+        return (
+          <span
+            key={skill.id || index}
+            className="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-3 py-1 rounded-full"
+          >
+            {skill.name}
+          </span>
+        );
+      })
+    ) : (
+      <p className="text-gray-600">No skills available</p>
+    )}
+  </div>
+</div>
+
+
                     </div>
                   )}
                 </div>
