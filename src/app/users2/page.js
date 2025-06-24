@@ -158,6 +158,52 @@ const UserProfilesApp = () => {
   }
 };
 
+const handleDeleteSkill = async (skillId) => {
+  console.log("i'm in handleDeleteSkill", skillId, selectedUser);
+  if (!isCurrentUser(selectedUser)) return;
+  
+  try {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setError('No authentication token found. Please login.');
+      return;
+    }
+
+    const response = await fetch(`http://127.0.0.1:8000/api/skills/${skillId}/`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.status === 401) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        return handleDeleteSkill(skillId); // retry
+      } else {
+        setError('Authentication expired. Please login again.');
+        return;
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error('Failed to delete skill');
+    }
+
+    // Remove the skill from the UI
+    setSelectedUser((prevUser) => ({
+      ...prevUser,
+      skills: prevUser.skills.filter((skill) => skill.id !== skillId)
+    }));
+
+  } catch (err) {
+    setError('Failed to delete skill: ' + err.message);
+  }
+};
+
+
+
   const handleUserClick = (profile) => {
   if (!profile || !profile.id) {
     console.error('Invalid profile selected:', profile);
@@ -468,21 +514,28 @@ const UserProfilesApp = () => {
   <div className="flex flex-wrap gap-2">
     
     {selectedUser.skills && selectedUser.skills.length > 0 ? (
-      selectedUser.skills.map((skill, index) => {
-        console.log('Rendering skill:', skill); // ✅ Debug here
-        console.log('selected user',selectedUser)
-        return (
-          <span
-            key={skill.id || index}
-            className="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-3 py-1 rounded-full"
+  selectedUser.skills.map((skill, index) => {
+    return (
+      <span
+        key={skill.id || index}
+        className="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-3 py-1 rounded-full flex items-center"
+      >
+        {skill.name} 
+        
+          <button
+            onClick={() => handleDeleteSkill(skill.id)}
+            className="ml-2 text-red-500 hover:text-red-700 focus:outline-none"
           >
-            {skill.name}
-          </span>
-        );
-      })
-    ) : (
-      <p className="text-gray-600">No skills available</p>
-    )}
+            ×
+          </button>
+        
+      </span>
+    );
+  })
+) : (
+  <p className="text-gray-600">No skills available</p>
+)}
+
   </div>
 </div>
 
