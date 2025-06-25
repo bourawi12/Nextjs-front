@@ -1,10 +1,19 @@
+"use client";
 
-'use client';
-
-import React, { useState, useEffect  } from 'react';
-import { User, Edit2, Mail, Calendar, Briefcase, Users, FileText , X } from 'lucide-react';
-import { redirect } from 'next/dist/server/api-utils';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from "react";
+import {
+  User,
+  Edit2,
+  Mail,
+  Calendar,
+  Briefcase,
+  Users,
+  FileText,
+  X,
+} from "lucide-react";
+import { redirect } from "next/dist/server/api-utils";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const UserProfilesApp = () => {
   const [profiles, setProfiles] = useState([]);
@@ -14,32 +23,28 @@ const UserProfilesApp = () => {
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [newSkillName, setNewSkillName] = useState('');
-  const [newSkillProficiency, setNewSkillProficiency] = useState('');
+  const [newSkillName, setNewSkillName] = useState("");
+  const [newSkillProficiency, setNewSkillProficiency] = useState("");
   const proficiencyOrder = {
-  'Expert': 1,
-  'Intermediate': 2,
-  'Basic': 3
-};
+    Expert: 1,
+    Intermediate: 2,
+    Basic: 3,
+  };
 
-
-  
-  
   const router = useRouter();
-  
+
   const getCurrentUser = () => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (!token) return null;
-    
+
     try {
-      
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return { 
-        id: payload.user_id, 
-        username: payload.username 
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return {
+        id: payload.user_id,
+        username: payload.username,
       };
     } catch (error) {
-      console.error('Error decoding token:', error);
+      console.error("Error decoding token:", error);
       return null;
     }
   };
@@ -47,37 +52,36 @@ const UserProfilesApp = () => {
   useEffect(() => {
     const user = getCurrentUser();
     if (!user) {
-      setError('Please login to access profiles.');
+      setError("Please login to access profiles.");
       setLoading(false);
       return;
     }
-    
+
     setCurrentUser(user);
     fetchProfiles();
   }, []);
 
-  
   const refreshToken = async () => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token');
+      const refreshToken = localStorage.getItem("refresh_token");
       if (!refreshToken) return false;
 
-      const response = await fetch('http://127.0.0.1:8000/api/auth/refresh/', {
-        method: 'POST',
+      const response = await fetch("http://127.0.0.1:8000/api/auth/refresh/", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ refresh: refreshToken })
+        body: JSON.stringify({ refresh: refreshToken }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('access_token', data.access);
+        localStorage.setItem("access_token", data.access);
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      console.error("Token refresh failed:", error);
       return false;
     }
   };
@@ -85,29 +89,27 @@ const UserProfilesApp = () => {
   const fetchProfiles = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token');
-      
+      const token = localStorage.getItem("access_token");
+
       if (!token) {
-        setError('No authentication token found. Please login.');
+        setError("No authentication token found. Please login.");
         setLoading(false);
         return;
       }
 
-      const response = await fetch('http://127.0.0.1:8000/api/profiles/', {
+      const response = await fetch("http://127.0.0.1:8000/api/profiles/", {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
       if (response.status === 401) {
-        
         const refreshed = await refreshToken();
         if (refreshed) {
-          
           return fetchProfiles();
         } else {
-          setError('Authentication expired. Please login again.');
+          setError("Authentication expired. Please login again.");
           setLoading(false);
           return;
         }
@@ -121,166 +123,206 @@ const UserProfilesApp = () => {
       setProfiles(data.results);
       setLoading(false);
     } catch (err) {
-      setError('Failed to fetch profiles: ' + err.message);
+      setError("Failed to fetch profiles: " + err.message);
       setLoading(false);
     }
   };
   const fetchSkillsperuser = async (userId) => {
-  const token = localStorage.getItem('access_token');
-  if (!token) {
-    setError('No authentication token found. Please login.');
-    return;
-  }
-
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/api/profiles/${userId}/skills/`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (response.status === 401) {
-      const refreshed = await refreshToken();
-      if (refreshed) {
-        return fetchSkillsperuser(userId); // retry
-      } else {
-        setError('Authentication expired. Please login again.');
-        return;
-      }
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to fetch skills');
-    }
-
-    const skillsData = await response.json();
-
-    // Update the selected user with their skills
-    setSelectedUser((prevUser) => ({
-      ...prevUser,
-      skills: skillsData // Assuming this is an array of skills
-    }));
-
-  } catch (err) {
-    setError('Failed to fetch skills: ' + err.message);
-  }
-};
-
-const handleAddSkill = async () => {
-  if (!newSkillName.trim() || !newSkillProficiency.trim()) return;
-
-  try {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (!token) {
-      setError('No authentication token found. Please login.');
+      setError("No authentication token found. Please login.");
       return;
     }
 
-    const response = await fetch('http://127.0.0.1:8000/api/skills/', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        profile: selectedUser.id,  // Assuming selectedUser is the profile owner
-        name: newSkillName,
-        prificiency: newSkillProficiency
-      })
-    });
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/profiles/${userId}/skills/`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-    if (response.status === 401) {
-      const refreshed = await refreshToken();
-      if (refreshed) {
-        return handleAddSkill(); // Retry
-      } else {
-        setError('Authentication expired. Please login again.');
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          return fetchSkillsperuser(userId); // retry
+        } else {
+          setError("Authentication expired. Please login again.");
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to fetch skills");
+      }
+
+      const skillsData = await response.json();
+
+      // Update the selected user with their skills
+      setSelectedUser((prevUser) => ({
+        ...prevUser,
+        skills: skillsData, // Assuming this is an array of skills
+      }));
+    } catch (err) {
+      setError("Failed to fetch skills: " + err.message);
+    }
+  };
+
+  const handleAddSkill = async () => {
+    if (!newSkillName.trim() || !newSkillProficiency.trim()) return;
+
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setError("No authentication token found. Please login.");
         return;
       }
+
+      const response = await fetch("http://127.0.0.1:8000/api/skills/", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          profile: selectedUser.id, // Assuming selectedUser is the profile owner
+          name: newSkillName,
+          prificiency: newSkillProficiency,
+        }),
+      });
+
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          return handleAddSkill(); // Retry
+        } else {
+          setError("Authentication expired. Please login again.");
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to add skill");
+      }
+
+      const newSkill = await response.json();
+
+      // Update UI
+      setSelectedUser((prevUser) => ({
+        ...prevUser,
+        skills: [...prevUser.skills, newSkill],
+      }));
+
+      // Clear input fields
+      setNewSkillName("");
+      setNewSkillProficiency("");
+    } catch (err) {
+      setError("Failed to add skill: " + err.message);
     }
+  };
 
-    if (!response.ok) {
-      throw new Error('Failed to add skill');
+  const handleDeleteSkill = async (skillId) => {
+    console.log("i'm in handleDeleteSkill", skillId, selectedUser);
+    if (!isCurrentUser(selectedUser)) return;
+
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setError("No authentication token found. Please login.");
+        return;
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/skills/${skillId}/`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          return handleDeleteSkill(skillId); // retry
+        } else {
+          setError("Authentication expired. Please login again.");
+          return;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error("Failed to delete skill");
+      }
+
+      // Remove the skill from the UI
+      setSelectedUser((prevUser) => ({
+        ...prevUser,
+        skills: prevUser.skills.filter((skill) => skill.id !== skillId),
+      }));
+    } catch (err) {
+      setError("Failed to delete skill: " + err.message);
     }
+  };
 
-    const newSkill = await response.json();
-
-    // Update UI
-    setSelectedUser((prevUser) => ({
-      ...prevUser,
-      skills: [...prevUser.skills, newSkill]
-    }));
-
-    // Clear input fields
-    setNewSkillName('');
-    setNewSkillProficiency('');
-
-  } catch (err) {
-    setError('Failed to add skill: ' + err.message);
-  }
-};
-
-
-
-const handleDeleteSkill = async (skillId) => {
-  console.log("i'm in handleDeleteSkill", skillId, selectedUser);
-  if (!isCurrentUser(selectedUser)) return;
-  
-  try {
-    const token = localStorage.getItem('access_token');
+  const fetchprojectsperuser = async (userId) => {
+    const token = localStorage.getItem("access_token");
     if (!token) {
-      setError('No authentication token found. Please login.');
+      setError("No authentication token found. Please login.");
       return;
     }
-
-    const response = await fetch(`http://127.0.0.1:8000/api/skills/${skillId}/`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/profiles/${userId}/projects/`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          return fetchprojectsperuser(userId); // retry
+        } else {
+          setError("Authentication expired. Please login again.");
+          return;
+        }
       }
-    });
-
-    if (response.status === 401) {
-      const refreshed = await refreshToken();
-      if (refreshed) {
-        return handleDeleteSkill(skillId); // retry
-      } else {
-        setError('Authentication expired. Please login again.');
-        return;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to fetch projects");
       }
+      const projectsData = await response.json();
+      console.log(projectsData);
+      // Update the selected user with their projects
+      setSelectedUser((prevUser) => ({
+        ...prevUser,
+        projects: projectsData, // Assuming this is an array of projects
+      }));
+    } catch (err) {
+      setError("failed to fetch projects" + err.message);
     }
-
-    if (!response.ok) {
-      throw new Error('Failed to delete skill');
-    }
-
-    // Remove the skill from the UI
-    setSelectedUser((prevUser) => ({
-      ...prevUser,
-      skills: prevUser.skills.filter((skill) => skill.id !== skillId)
-    }));
-
-  } catch (err) {
-    setError('Failed to delete skill: ' + err.message);
-  }
-};
-
-
+  };
 
   const handleUserClick = (profile) => {
-  if (!profile || !profile.id) {
-    console.error('Invalid profile selected:', profile);
-    return;
-  }
+    if (!profile || !profile.id) {
+      console.error("Invalid profile selected:", profile);
+      return;
+    }
 
-  setSelectedUser(profile);
-  setIsEditing(false);
-  fetchSkillsperuser(profile.id);
-};
-
+    setSelectedUser(profile);
+    setIsEditing(false);
+    fetchSkillsperuser(profile.id);
+    fetchprojectsperuser(profile.id);
+  };
 
   const handleEditClick = () => {
     setEditForm({
@@ -288,82 +330,80 @@ const handleDeleteSkill = async (skillId) => {
       last_name: selectedUser.owner.last_name,
       email: selectedUser.owner.email,
       bio: selectedUser.bio,
-      position: selectedUser.position
+      position: selectedUser.position,
     });
     setIsEditing(true);
   };
 
   const handleSaveEdit = async () => {
-  try {
-    const token = localStorage.getItem('access_token');
-    
-    if (!token) {
-      setError('No authentication token found. Please login.');
-      return;
-    }
+    try {
+      const token = localStorage.getItem("access_token");
 
-    const response = await fetch(`http://127.0.0.1:8000/api/profiles/${selectedUser.id}/`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        bio: editForm.bio,
-        position: editForm.position
-      })
-    });
-
-    if (response.status === 401) {
-      const refreshed = await refreshToken();
-      if (refreshed) {
-        return handleSaveEdit();
-      } else {
-        setError('Authentication expired. Please login again.');
+      if (!token) {
+        setError("No authentication token found. Please login.");
         return;
       }
-    }
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || 'Failed to update profile');
-    }
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/profiles/${selectedUser.id}/`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            bio: editForm.bio,
+            position: editForm.position,
+          }),
+        }
+      );
 
-    const updatedProfile = await response.json();
-    
-     
-    updatedProfile.owner = selectedUser.owner;
-    
-    const updatedProfiles = profiles.map(profile => {
-      if (profile.id === selectedUser.id) {
-        return updatedProfile;
+      if (response.status === 401) {
+        const refreshed = await refreshToken();
+        if (refreshed) {
+          return handleSaveEdit();
+        } else {
+          setError("Authentication expired. Please login again.");
+          return;
+        }
       }
-      return profile;
-    });
-  
-    setProfiles(updatedProfiles);
-    setSelectedUser(updatedProfile);
-    setIsEditing(false);
-    
-  } catch (err) {
-    setError('Failed to update profile: ' + err.message);
-  }
-};
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to update profile");
+      }
+
+      const updatedProfile = await response.json();
+
+      updatedProfile.owner = selectedUser.owner;
+
+      const updatedProfiles = profiles.map((profile) => {
+        if (profile.id === selectedUser.id) {
+          return updatedProfile;
+        }
+        return profile;
+      });
+
+      setProfiles(updatedProfiles);
+      setSelectedUser(updatedProfile);
+      setIsEditing(false);
+    } catch (err) {
+      setError("Failed to update profile: " + err.message);
+    }
   };
 
-  
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const isCurrentUser = (profile) => {
     return currentUser && profile.owner.id === currentUser.id;
   };
-
 
   if (loading) {
     return (
@@ -383,24 +423,26 @@ const handleDeleteSkill = async (skillId) => {
       </div>
     );
   }
-const getSkillBadgeColor = (proficiency) => {
-  switch (proficiency) {
-    case 'Expert':
-      return 'bg-green-200 text-green-800';
-    case 'Intermediate':
-      return 'bg-yellow-200 text-yellow-800';
-    case 'Basic':
-      return 'bg-red-200 text-red-800';
-    default:
-      return 'bg-gray-200 text-gray-800';
-  }
-};
+  const getSkillBadgeColor = (proficiency) => {
+    switch (proficiency) {
+      case "Expert":
+        return "bg-green-200 text-green-800";
+      case "Intermediate":
+        return "bg-yellow-200 text-yellow-800";
+      case "Basic":
+        return "bg-red-200 text-red-800";
+      default:
+        return "bg-gray-200 text-gray-800";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">Team Profiles</h1>
-        
+        <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+          Team Profiles
+        </h1>
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Users List */}
           <div className="bg-white rounded-lg shadow-md">
@@ -416,7 +458,9 @@ const getSkillBadgeColor = (proficiency) => {
                   key={profile.id}
                   onClick={() => handleUserClick(profile)}
                   className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
-                    selectedUser?.id === profile.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    selectedUser?.id === profile.id
+                      ? "bg-blue-50 border-l-4 border-blue-500"
+                      : ""
                   }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -434,12 +478,14 @@ const getSkillBadgeColor = (proficiency) => {
                           </span>
                         )}
                       </p>
-                      <p className="text-sm text-gray-500 truncate">{profile.position}</p>
+                      <p className="text-sm text-gray-500 truncate">
+                        {profile.position}
+                      </p>
                       <div className="flex items-center mt-1 text-xs text-gray-400">
                         <FileText className="h-3 w-3 mr-1" />
-                        {profile.skills_count} skills  • {profile.projects_count} projects 
+                        {profile.skills_count} skills • {profile.projects_count}{" "}
+                        projects
                       </div>
-                      
                     </div>
                   </div>
                 </div>
@@ -453,7 +499,9 @@ const getSkillBadgeColor = (proficiency) => {
               <div>
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-900">User Details</h2>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      User Details
+                    </h2>
                     {isCurrentUser(selectedUser) && !isEditing && (
                       <button
                         onClick={handleEditClick}
@@ -477,7 +525,12 @@ const getSkillBadgeColor = (proficiency) => {
                           <input
                             type="text"
                             value={editForm.first_name}
-                            onChange={(e) => setEditForm({...editForm, first_name: e.target.value})}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                first_name: e.target.value,
+                              })
+                            }
                             className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -488,7 +541,12 @@ const getSkillBadgeColor = (proficiency) => {
                           <input
                             type="text"
                             value={editForm.last_name}
-                            onChange={(e) => setEditForm({...editForm, last_name: e.target.value})}
+                            onChange={(e) =>
+                              setEditForm({
+                                ...editForm,
+                                last_name: e.target.value,
+                              })
+                            }
                             className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -500,7 +558,9 @@ const getSkillBadgeColor = (proficiency) => {
                         <input
                           type="email"
                           value={editForm.email}
-                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, email: e.target.value })
+                          }
                           className="w-full px-3 py-2 text-gray-700 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -511,7 +571,12 @@ const getSkillBadgeColor = (proficiency) => {
                         <input
                           type="text"
                           value={editForm.position}
-                          onChange={(e) => setEditForm({...editForm, position: e.target.value})}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              position: e.target.value,
+                            })
+                          }
                           className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
@@ -521,7 +586,9 @@ const getSkillBadgeColor = (proficiency) => {
                         </label>
                         <textarea
                           value={editForm.bio}
-                          onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, bio: e.target.value })
+                          }
                           rows={4}
                           className="w-full px-3 py-2 border text-gray-700 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
@@ -549,20 +616,27 @@ const getSkillBadgeColor = (proficiency) => {
                         </div>
                         <div>
                           <h3 className="text-2xl font-bold text-gray-900">
-                            {selectedUser.owner.first_name} {selectedUser.owner.last_name}
+                            {selectedUser.owner.first_name}{" "}
+                            {selectedUser.owner.last_name}
                           </h3>
-                          <p className="text-gray-600">@{selectedUser.owner.username}</p>
+                          <p className="text-gray-600">
+                            @{selectedUser.owner.username}
+                          </p>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 gap-4">
                         <div className="flex items-center space-x-3">
                           <Mail className="h-5 w-5 text-gray-400" />
-                          <span className="text-gray-900">{selectedUser.owner.email}</span>
+                          <span className="text-gray-900">
+                            {selectedUser.owner.email}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-3">
                           <Briefcase className="h-5 w-5 text-gray-400" />
-                          <span className="text-gray-900">{selectedUser.position}</span>
+                          <span className="text-gray-900">
+                            {selectedUser.position}
+                          </span>
                         </div>
                         <div className="flex items-center space-x-3">
                           <Calendar className="h-5 w-5 text-gray-400" />
@@ -573,88 +647,141 @@ const getSkillBadgeColor = (proficiency) => {
                       </div>
 
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-2">Bio</h4>
-                        <p className="text-gray-700 leading-relaxed">{selectedUser.bio}</p>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          Bio
+                        </h4>
+                        <p className="text-gray-700 leading-relaxed">
+                          {selectedUser.bio}
+                        </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-blue-50 rounded-lg p-4 text-center">
-                          <div className="text-2xl font-bold text-blue-600">{selectedUser.skills_count}</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {selectedUser.skills_count}
+                          </div>
                           <div className="text-sm text-blue-800">Skills</div>
                         </div>
                         <div className="bg-green-50 rounded-lg p-4 text-center">
-                          <div className="text-2xl font-bold text-green-600">{selectedUser.projects_count}</div>
-                          <div className="text-sm text-green-800" onClick={() => router.push('/skills')}>Projects</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            {selectedUser.projects_count}
+                          </div>
+                          <div
+                            className="text-sm text-green-800"
+                            onClick={() => router.push("/skills")}
+                          >
+                            Projects
+                          </div>
                         </div>
                       </div>
-                     <div>
-  <h4 className="text-lg font-semibold text-gray-900 mb-2">Skills</h4>
-  
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          Skills
+                        </h4>
 
+                        <div className="flex flex-wrap gap-2">
+                          {selectedUser.skills &&
+                          selectedUser.skills.length > 0 ? (
+                            selectedUser.skills
+                              .slice() // Make a shallow copy to avoid mutating state directly
+                              .sort(
+                                (a, b) =>
+                                  proficiencyOrder[a.prificiency] -
+                                  proficiencyOrder[b.prificiency]
+                              )
+                              .map((skill, index) => {
+                                return (
+                                  <span
+                                    key={skill.id || index}
+                                    className={`text-sm font-medium mr-2 px-3 py-1 rounded-full flex items-center ${getSkillBadgeColor(
+                                      skill.prificiency
+                                    )}`}
+                                  >
+                                    {skill.name}
+                                    {isCurrentUser(selectedUser) &&
+                                      !isEditing && (
+                                        <button
+                                          onClick={() =>
+                                            handleDeleteSkill(skill.id)
+                                          }
+                                          className="ml-2 text-neutral-800 hover:text-neutral-950 focus:outline-none"
+                                        >
+                                          <X className="h-3 w-3 text-gray-800" />
+                                        </button>
+                                      )}
+                                  </span>
+                                );
+                              })
+                          ) : (
+                            <p className="text-gray-600">No skills available</p>
+                          )}
+                        </div>
 
+                        {isCurrentUser(selectedUser) && !isEditing && (
+                          <div className="flex items-center justify-between mb-2">
+                            <input
+                              type="text"
+                              placeholder="Enter skill name"
+                              value={newSkillName}
+                              onChange={(e) => setNewSkillName(e.target.value)}
+                              className="border text-neutral-800 p-2 rounded w-64"
+                            />
 
-  <div className="flex flex-wrap gap-2">
-    
-    {selectedUser.skills && selectedUser.skills.length > 0 ? (
-  selectedUser.skills
-    .slice() // Make a shallow copy to avoid mutating state directly
-    .sort((a, b) => proficiencyOrder[a.prificiency] - proficiencyOrder[b.prificiency])
-    .map((skill, index) => {
-      return (
-        <span
-          key={skill.id || index}
-          className={`text-sm font-medium mr-2 px-3 py-1 rounded-full flex items-center ${getSkillBadgeColor(skill.prificiency)}`}
-        >
-          {skill.name}
- {isCurrentUser(selectedUser) && !isEditing && (
-          <button
-            onClick={() => handleDeleteSkill(skill.id)}
-            className="ml-2 text-neutral-800 hover:text-neutral-950 focus:outline-none"
-          >
-            <X className="h-3 w-3 text-gray-800" />
-          </button>)}
-        </span>
-      );
-    })
-) : (
-  <p className="text-gray-600">No skills available</p>
-)}
+                            <select
+                              value={newSkillProficiency}
+                              onChange={(e) =>
+                                setNewSkillProficiency(e.target.value)
+                              }
+                              className="border text-neutral-800 p-2 rounded w-64"
+                            >
+                              <option value="">Select proficiency</option>
+                              <option value="Expert">Expert</option>
+                              <option value="Intermediate">Intermediate</option>
+                              <option value="Basic">Basic</option>
+                            </select>
 
-
-
-  </div>
-  {isCurrentUser(selectedUser) && !isEditing && (
-  <div className="flex items-center space-x-2 mt-4">
-  <input
-    type="text"
-    placeholder="Enter skill name"
-    value={newSkillName}
-    onChange={(e) => setNewSkillName(e.target.value)}
-    className="border text-neutral-800 p-2 rounded w-64"
-  />
-  
-  <select
-    value={newSkillProficiency}
-    onChange={(e) => setNewSkillProficiency(e.target.value)}
-    className="border text-neutral-800 p-2 rounded w-64"
-  >
-    <option value="">Select proficiency</option>
-    <option value="Expert">Expert</option>
-    <option value="Intermediate">Intermediate</option>
-    <option value="Basic">Basic</option>
-  </select>
-
-  
+                            <button
+                              onClick={handleAddSkill}
+                              className="text-white bg-blue-500 hover:bg-blue-600 rounded px-4 py-2"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mb-2"> {/* Added a flex container */}
+  <h4 className="text-lg font-semibold text-gray-900"> {/* Removed mb-2 from h4 */}
+    Projects
+  </h4>
   <button
-    onClick={handleAddSkill}
-    className="text-white bg-blue-500 hover:bg-blue-600 rounded px-4 py-2"
+    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" // Removed mb-4 from button
+    onClick={() => router.push(`/projects/create?userId=${selectedUser.id}`)}
   >
     +
   </button>
-</div>)}
 </div>
 
+                      {selectedUser.projects &&
+                      selectedUser.projects.length > 0 ? (
+                        selectedUser.projects.map((project, index) => (
+                          <span
+                            key={project.id || index}
+                            className="text-sm text-neutral-800 font-medium mr-2 px-3 py-1 rounded-full flex items-center cursor-pointer hover:bg-gray-200"
+                            onClick={() =>
+                              
+                              // On project click
+                              router.push(`/projects/${project.id}?userId=${selectedUser.id}`)
 
+                            } // Go to details page
+                          >
+                            {project.title}
+
+                            
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-gray-600">No project available</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -666,10 +793,8 @@ const getSkillBadgeColor = (proficiency) => {
               </div>
             )}
           </div>
-          
         </div>
       </div>
-      
     </div>
   );
 };
